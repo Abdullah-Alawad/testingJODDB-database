@@ -19,11 +19,15 @@ app.get('/', (req, res) => {
 
 mongoose.connect("mongodb+srv://abdullah:vPe3JzHuEZLjBUiX@joddb-db.uhzo2ij.mongodb.net/joddb-API?appName=JODDB-DB")
 .then(() => {
-	console.log("data base connected")
-	app.listen(3000, () => {
-		console.log("server running...");
-	});
+	newFunction();
 })
 .catch(() => {
 	console.log("connection failed");
 });
+
+function newFunction() {
+	const PORT = process.env.PORT || 3000 // fallback for local
+	app.listen(PORT, () => {
+		console.log(`Server running on port ${PORT}`)
+	})
+}
