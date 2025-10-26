@@ -20,7 +20,7 @@ app.get('/', (req, res) => {
 });
 
 
-mongoose.connect("mongodb+srv://abdullah:vPe3JzHuEZLjBUiX@joddb-db.uhzo2ij.mongodb.net/joddb-API?appName=JODDB-DB")
+mongoose.connect(process.env.MONGO_URI)
 .then(() => {
 	newFunction();
 })
