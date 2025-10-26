@@ -8,7 +8,11 @@ const deviceRoute = require('./routes/device.route.js');
 const app = express();
 
 // Middleware
-app.use(cors()); // allow React frontend to call this API
+app.use(cors({
+  origin: '*', // For development - allows all origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
