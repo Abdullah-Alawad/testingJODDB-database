@@ -1,19 +1,22 @@
-const express = require("express")
-const mongoose = require("mongoose")
-const Device = require('./models/device.model.js')
-const deviceRoute = require('./routes/device.route.js')
+// index.js
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+const Device = require('./models/device.model.js');
+const deviceRoute = require('./routes/device.route.js');
 
-const app = express()
+const app = express();
 
-// middleware config
+// Middleware
+app.use(cors()); // allow React frontend to call this API
 app.use(express.json());
-app.use(express.urlencoded({extended: false})) // more research
+app.use(express.urlencoded({ extended: false }));
 
-// routes
+// Routes
 app.use('/api/devices', deviceRoute);
 
 app.get('/', (req, res) => {
-	res.send("hello from api...");
+    res.send("Hello from API...");
 });
 
 
