@@ -26,7 +26,7 @@ app.get('/', (req, res) => {
 });
 
 
-mongoose.connect(MONGO_URI)
+mongoose.connect(process.env.MONGO_URI)
 .then(() => {
 	newFunction();
 })
