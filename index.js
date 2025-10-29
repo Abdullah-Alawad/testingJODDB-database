@@ -55,7 +55,7 @@ app.get('/', (req, res) => {
 
 // process.env.MONGO_URI
 // mongodb+srv://abdullah:vPe3JzHuEZLjBUiX@joddb-db.uhzo2ij.mongodb.net/joddb-API?appName=JODDB-DB
-mongoose.connect("mongodb+srv://abdullah:vPe3JzHuEZLjBUiX@joddb-db.uhzo2ij.mongodb.net/joddb-API?appName=JODDB-DB")
+mongoose.connect(process.env.MONGO_URI)
 .then(() => {
 	newFunction();
 })
