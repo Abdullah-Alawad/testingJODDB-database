@@ -2,8 +2,8 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const Device = require('./models/device.model.js');
-const deviceRoute = require('./routes/device.route.js');
+const userRoute = require('./routes/user.route.js');
+const jobsRoute = require('./routes/jobOrder.route.js');
 
 const app = express();
 
@@ -17,14 +17,16 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // Routes
-app.use('/api/devices', deviceRoute);
+// app.use('/api/devices', deviceRoute);
+app.use('/api/users', userRoute);
+app.use('/api/jobs', jobsRoute);
 
 app.get('/', (req, res) => {
     res.send("Hello from API...");
 });
 
 
-mongoose.connect(process.env.MONGO_URI)
+mongoose.connect(MONGO_URI)
 .then(() => {
 	newFunction();
 })
