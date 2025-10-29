@@ -8,7 +8,9 @@ const {
 	deleteUser,
 	assignSupervisor,
 	getUsersByType,
-	getTechniciansBySupervisor
+	getTechniciansBySupervisor,
+	userLogin,
+	userLogout
 } = require("../controllers/user.controller.js");
 
 // 🧑‍🤝‍🧑 Get all users
@@ -34,6 +36,12 @@ router.put("/:id/supervisor/:supervisorId", assignSupervisor);
 
 // 👷‍♂️ Get all technicians under a supervisor
 router.get("/supervisor/:supervisorId/technicians", getTechniciansBySupervisor);
+
+// 🔑 User login
+router.post("/login", userLogin);
+
+// 🚪 User logout
+router.post("/logout", userLogout);
 
 module.exports = router;
 

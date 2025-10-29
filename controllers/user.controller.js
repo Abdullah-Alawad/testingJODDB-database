@@ -123,3 +123,55 @@ exports.getTechniciansBySupervisor = async (req, res) => {
 		res.status(500).json({ message: error.message });
 	}
 };
+
+// 🔑 User login
+exports.userLogin = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        const user = await User.findOne({ email: email });
+        if (!user) {
+            return res.status(400).json({ message: "User does not exist, please sign up instead" });
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.hashedPassword);
+        if (!isPasswordValid) {
+            return res.status(400).json({ message: "Invalid email or password" });
+        }
+
+        // Create session token content
+        const content = {
+            userId: user._id,
+            authorized: user.isAdmin,
+            userType: user.userType
+        };
+
+        // Here you would typically create a JWT token
+        // For example: const token = jwt.sign(content, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+        res.status(200).json({
+            message: "Login successful",
+            user: {
+                id: user._id,
+                email: user.email,
+                userType: user.userType,
+                isAdmin: user.isAdmin
+            }
+            // token: token  // Uncomment when JWT is implemented
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// 🚪 User logout
+exports.userLogout = async (req, res) => {
+    try {
+        // If using session-based auth, you would clear the session here
+        // If using JWT, you might want to add the token to a blacklist
+        // For now, we'll just send a success response
+        res.status(200).json({ message: "Logged out successfully" });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
