@@ -1,5 +1,8 @@
 const User = require("../models/user.model.js");
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const TokenBlacklist = require("../models/blackList.model.js"); // <-- new
+
 
 // Set how strong the hashing should be (10 is a good default)
 const SALT_ROUNDS = 10;
@@ -139,15 +142,31 @@ exports.userLogin = async (req, res) => {
             return res.status(400).json({ message: "Invalid email or password" });
         }
 
-        // Create session token content
-        const content = {
+        // Create access token
+        const accessToken = jwt.sign({
             userId: user._id,
-            authorized: user.isAdmin,
-            userType: user.userType
-        };
+            email: user.email,
+            userType: user.userType,
+            isAdmin: user.isAdmin
+        }, process.env.JWT_SECRET || 'your-secret-key', { expiresIn: '1h' });
 
-        // Here you would typically create a JWT token
-        // For example: const token = jwt.sign(content, process.env.JWT_SECRET, { expiresIn: '1h' });
+        // Create refresh token with longer expiry
+        const refreshToken = jwt.sign({
+            userId: user._id,
+            tokenVersion: user.tokenVersion || 0
+        }, process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key', { expiresIn: '7d' });
+
+        // Save refresh token to user document
+        user.refreshToken = refreshToken;
+        await user.save();
+
+        // Set refresh token in HTTP-only cookie
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        });
 
         res.status(200).json({
             message: "Login successful",
@@ -156,22 +175,114 @@ exports.userLogin = async (req, res) => {
                 email: user.email,
                 userType: user.userType,
                 isAdmin: user.isAdmin
-            }
-            // token: token  // Uncomment when JWT is implemented
+            },
+            accessToken
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
 
+// � Refresh access token
+exports.refreshToken = async (req, res) => {
+    try {
+        const refreshToken = req.cookies.refreshToken;
+        if (!refreshToken) {
+            return res.status(401).json({ message: "Refresh token not found" });
+        }
+
+        // Verify refresh token
+        const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key');
+        
+        // Find user and check if refresh token is still valid
+        const user = await User.findById(decoded.userId);
+        if (!user || user.refreshToken !== refreshToken) {
+            return res.status(403).json({ message: "Invalid refresh token" });
+        }
+
+        // Create new access token
+        const accessToken = jwt.sign({
+            userId: user._id,
+            email: user.email,
+            userType: user.userType,
+            isAdmin: user.isAdmin
+        }, process.env.JWT_SECRET || 'your-secret-key', { expiresIn: '1h' });
+
+        res.json({ accessToken });
+    } catch (error) {
+        res.status(403).json({ message: "Invalid refresh token" });
+    }
+};
+
 // 🚪 User logout
 exports.userLogout = async (req, res) => {
-    try {
-        // If using session-based auth, you would clear the session here
-        // If using JWT, you might want to add the token to a blacklist
-        // For now, we'll just send a success response
-        res.status(200).json({ message: "Logged out successfully" });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+  try {
+    // Accept either:
+    // - Authorization: Bearer <token>
+    // - Authorization: <token>
+    // - OR a refreshToken cookie (if you want to blacklist refresh tokens from cookie)
+    let rawHeader = req.headers.authorization || "";
+    let token = rawHeader.startsWith("Bearer ") ? rawHeader.split(" ")[1] : rawHeader;
+
+    // If not in header, try cookie (useful if refresh token stored in cookie)
+    if (!token && req.cookies && req.cookies.refreshToken) {
+      token = req.cookies.refreshToken;
     }
+
+    if (!token) {
+      // still clear cookie to be safe
+      res.clearCookie("refreshToken", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict"
+      });
+      return res.status(200).json({ message: "Logged out successfully (no token provided)" });
+    }
+
+    // decode to extract exp (do not verify here because the token might be expired)
+    const decoded = jwt.decode(token);
+    // Fallback expiry: 7 days from now (shouldn't happen if token has exp)
+    let expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    if (decoded && decoded.exp) {
+      expiresAt = new Date(decoded.exp * 1000);
+    }
+
+    // Save to blacklist (ignore duplicate errors)
+    try {
+      await TokenBlacklist.create({ token, expiresAt });
+    } catch (err) {
+      // duplicate key or other error — ignore duplicate (already blacklisted)
+      if (err.code !== 11000) {
+        // Log but don't fail logout for DB write error
+        console.error("Failed to save blacklisted token:", err);
+      }
+    }
+
+    // Optional: if you want to null DB-stored refreshToken for the user, try to find user by token payload:
+    if (decoded && decoded.userId) {
+      try {
+        await User.findByIdAndUpdate(decoded.userId, {
+          refreshToken: null,
+          // increment tokenVersion if you use it
+          tokenVersion: (await User.findById(decoded.userId)).tokenVersion ? (await User.findById(decoded.userId)).tokenVersion + 1 : 1
+        });
+      } catch (err) {
+        // non-fatal; still proceed to clear cookie and respond success
+        console.error("Failed to clear user refreshToken field:", err);
+      }
+    }
+
+    // Clear cookie in any case
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict"
+    });
+
+    return res.status(200).json({ message: "Signed out successfully" });
+  } catch (error) {
+    console.error("Logout error:", error);
+    return res.status(500).json({ message: error.message });
+  }
 };

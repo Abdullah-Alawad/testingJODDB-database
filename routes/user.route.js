@@ -10,38 +10,30 @@ const {
 	getUsersByType,
 	getTechniciansBySupervisor,
 	userLogin,
-	userLogout
+	userLogout,
+    refreshToken
 } = require("../controllers/user.controller.js");
+const { verifyToken, verifyRole } = require("../middleware/auth.middleware.js");
 
-// 🧑‍🤝‍🧑 Get all users
 router.get("/", getAllUsers);
 
-// 🔍 Get user by ID
 router.get("/:id", getUserById);
 
-// ➕ Create new user
 router.post("/", createUser);
 
-// ✏️ Update user
 router.put("/:id", updateUser);
 
-// ❌ Delete user
 router.delete("/:id", deleteUser);
 
-// 🧭 Get users by role/type (planner, supervisor, technician)
 router.get("/type/:userType", getUsersByType);
 
-// 🔗 Assign a supervisor to a technician
 router.put("/:id/supervisor/:supervisorId", assignSupervisor);
 
-// 👷‍♂️ Get all technicians under a supervisor
 router.get("/supervisor/:supervisorId/technicians", getTechniciansBySupervisor);
 
-// 🔑 User login
 router.post("/login", userLogin);
 
-// 🚪 User logout
-router.post("/logout", userLogout);
+router.post("/logout", verifyToken, userLogout);
 
 module.exports = router;
 
